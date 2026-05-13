@@ -1,0 +1,136 @@
+@page "/extract"
+@using EmailContentExtractor.Services
+@inject HtmlLocalizationService LocalizationService
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Extract Strings</PageTitle>
+
+<h1>Extract Localizable Strings</h1>
+<p>Upload an HTML email file to extract all translatable text and attributes.</p>
+
+<div class="mb-3">
+    <label class="form-label">Select HTML file</label>
+    <InputFile OnChange="OnFileSelected" accept=".html,.htm" class="form-control" />
+</div>
+
+@if (isLoading)
+{
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@if (extractedStrings != null && extractedStrings.Count > 0)
+{
+    <div class="mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>Extracted Strings (@extractedStrings.Count found)</h4>
+            <div>
+                <button class="btn btn-primary me-2" @onclick="DownloadCsv">
+                    ⬇ Download CSV
+                </button>
+                <button class="btn btn-success" @onclick="DownloadXlsx">
+                    ⬇ Download XLSX
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Type</th>
+                        <th>Original Text</th>
+                        <th>Attribute</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in extractedStrings)
+                    {
+                        <tr>
+                            <td><code>@s.Key</code></td>
+                            <td><span class="badge @(s.Type == "text" ? "bg-info" : "bg-warning")">@s.Type</span></td>
+                            <td>@Truncate(s.Original, 100)</td>
+                            <td>@s.Attribute</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else if (extractedStrings != null && extractedStrings.Count == 0)
+{
+    <div class="alert alert-warning mt-3">No localizable strings found in the uploaded HTML.</div>
+}
+
+@code {
+    private List<LocalizableString>? extractedStrings;
+    private string? fileName;
+    private byte[]? csvBytes;
+    private byte[]? xlsxBytes;
+    private bool isLoading;
+    private string? errorMessage;
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        errorMessage = null;
+        extractedStrings = null;
+        csvBytes = null;
+        xlsxBytes = null;
+        isLoading = true;
+
+        try
+        {
+            var file = e.File;
+            fileName = file.Name;
+
+            // 10 MB limit
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var html = await reader.ReadToEndAsync();
+
+            extractedStrings = LocalizationService.ExtractStrings(html);
+            csvBytes = LocalizationService.ExportToCsv(extractedStrings);
+            xlsxBytes = LocalizationService.ExportToXlsx(extractedStrings);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error processing file: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DownloadCsv()
+    {
+        if (csvBytes == null || fileName == null) return;
+
+        var csvFileName = Path.GetFileNameWithoutExtension(fileName) + "_strings.csv";
+        await JS.InvokeVoidAsync("downloadFile", csvFileName, "text/csv", csvBytes);
+    }
+
+    private async Task DownloadXlsx()
+    {
+        if (xlsxBytes == null || fileName == null) return;
+
+        var xlsxFileName = Path.GetFileNameWithoutExtension(fileName) + "_strings.xlsx";
+        await JS.InvokeVoidAsync("downloadFile", xlsxFileName,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsxBytes);
+    }
+
+    private static string Truncate(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value)) return value;
+        return value.Length <= maxLength ? value : value[..maxLength] + "…";
+    }
+}

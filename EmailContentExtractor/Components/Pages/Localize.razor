@@ -1,0 +1,510 @@
+@page "/"
+@page "/localize"
+@using EmailContentExtractor.Services
+@inject HtmlLocalizationService LocalizationService
+@inject FileStorageService FileStorage
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Localize Emails</PageTitle>
+
+<h1>Email Localization</h1>
+
+<div class="row mt-4">
+    @* ─── Step 1: Upload Source HTML ─── *@
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">① Upload Source HTML</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Upload an HTML email file. The locale is parsed from the filename
+                    (e.g. <code>email_K_en-au.html</code> → <strong>en-AU</strong>).
+                    A CSV file will be generated for translation.
+                </p>
+                <InputFile OnChange="OnSourceHtmlSelected" accept=".html,.htm" class="form-control" />
+
+                @if (uploadError != null)
+                {
+                    <div class="alert alert-danger mt-2">@uploadError</div>
+                }
+                @if (uploadSuccess != null)
+                {
+                    <div class="alert alert-success mt-2">@uploadSuccess</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ─── Source Files List ─── *@
+    @if (sourceFiles.Count > 0)
+    {
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">📁 Stored Source Files</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>File Name</th>
+                                <th>Locale</th>
+                                <th>CSV</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var src in sourceFiles)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@($"api/files/sources/{src.FileName}")" target="_blank">@src.FileName</a>
+                                    </td>
+                                    <td><span class="badge bg-info">@(src.Locale ?? "unknown")</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1"
+                                                @onclick="() => DownloadCsv(src.FileName)">
+                                            ⬇ CSV
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success"
+                                                @onclick="() => DownloadXlsx(src.FileName)">
+                                            ⬇ XLSX
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-warning me-1"
+                                                @onclick="() => StartEditing(src.FileName)"
+                                                disabled="@(editingFileName != null)">
+                                            ✏️ Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => DeleteSource(src.FileName)">
+                                            ✕
+                                        </button>
+                                    </td>
+                                </tr>
+                                @if (editingFileName == src.FileName)
+                                {
+                                    <tr>
+                                        <td colspan="4" class="p-3">
+                                            @if (editSaveSuccess != null)
+                                            {
+                                                <div class="alert alert-success py-1 mb-2">@editSaveSuccess</div>
+                                            }
+                                            <HtmlEditor HtmlContent="@editingHtmlContent"
+                                                        OnSave="OnEditorSave"
+                                                        OnCancel="OnEditorCancel" />
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ─── Step 2: Upload Translated CSV ─── *@
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">② Upload Translated CSV</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Edit the CSV or XLSX, fill in the <strong>Translation</strong> column, and save the file
+                    with the target locale in the name
+                    (e.g. <code>email_K_es-es.csv</code> or <code>email_K_es-es.xlsx</code>).
+                    For XLSX files, you can also use multiple sheets — one per language, with the sheet name
+                    as the locale code (e.g. "es-ES", "fr-FR"). Each sheet should have Key and Translation columns.
+                </p>
+                <InputFile OnChange="OnTranslatedFileSelected" accept=".csv,.xlsx" class="form-control" />
+
+                @if (csvError != null)
+                {
+                    <div class="alert alert-danger mt-2">@csvError</div>
+                }
+                @if (csvSuccess != null)
+                {
+                    <div class="alert alert-success mt-2">@csvSuccess</div>
+                }
+                @if (csvWarnings != null && csvWarnings.Count > 0)
+                {
+                    <div class="alert alert-warning mt-2">
+                        <strong>⚠ Warnings:</strong>
+                        <ul class="mb-0 mt-1">
+                            @foreach (var w in csvWarnings)
+                            {
+                                <li>@w</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ─── Generated Files ─── *@
+    @if (generatedFiles.Count > 0)
+    {
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">🌐 Generated Localized Files</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>File Name</th>
+                                <th>Locale</th>
+                                <th>Source</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var gen in generatedFiles)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@($"api/files/generated/{gen.FileName}")" target="_blank">@gen.FileName</a>
+                                    </td>
+                                    <td><span class="badge bg-success">@(gen.Locale ?? "unknown")</span></td>
+                                    <td>
+                                        @{
+                                            var matchedSource = sourceFiles.FirstOrDefault(
+                                                s => s.BaseName != null && gen.BaseName != null &&
+                                                s.BaseName.Equals(gen.BaseName, StringComparison.OrdinalIgnoreCase));
+                                        }
+                                        @if (matchedSource != null)
+                                        {
+                                            <span class="text-muted">from @matchedSource.FileName</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-success me-1"
+                                                @onclick="() => DownloadGenerated(gen.FileName)">
+                                            ⬇ Download
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => DeleteGenerated(gen.FileName)">
+                                            ✕
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (isProcessing)
+{
+    <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+         style="background: rgba(0,0,0,0.3); z-index: 9999;">
+        <div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Processing...</span>
+        </div>
+    </div>
+}
+
+@code {
+    private List<StoredFileInfo> sourceFiles = new();
+    private List<StoredFileInfo> generatedFiles = new();
+
+    private string? uploadError;
+    private string? uploadSuccess;
+    private string? csvError;
+    private string? csvSuccess;
+    private List<string>? csvWarnings;
+    private bool isProcessing;
+
+    // Editor state
+    private string? editingFileName;
+    private string editingHtmlContent = string.Empty;
+    private string? editSaveSuccess;
+
+    protected override void OnInitialized()
+    {
+        RefreshFileLists();
+    }
+
+    private void RefreshFileLists()
+    {
+        sourceFiles = FileStorage.GetAllSources();
+        generatedFiles = FileStorage.GetAllGenerated();
+    }
+
+    private async Task OnSourceHtmlSelected(InputFileChangeEventArgs e)
+    {
+        uploadError = null;
+        uploadSuccess = null;
+        isProcessing = true;
+
+        try
+        {
+            var file = e.File;
+            var fileName = file.Name;
+
+            var locale = FileStorageService.ParseLocale(fileName);
+            if (locale == null)
+            {
+                uploadError = $"Could not detect locale from filename \"{fileName}\". " +
+                    "Expected format like \"email_K_en-au.html\" where the locale is before the extension.";
+                return;
+            }
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var html = await reader.ReadToEndAsync();
+
+            // Store the source HTML
+            await FileStorage.StoreSourceAsync(fileName, html);
+
+            // Extract strings and generate CSV
+            var strings = LocalizationService.ExtractStrings(html);
+            var csvBytes = LocalizationService.ExportToCsv(strings);
+            var csvFileName = Path.GetFileNameWithoutExtension(fileName) + "_strings.csv";
+            await FileStorage.StoreCsvAsync(csvFileName, csvBytes);
+
+            uploadSuccess = $"Stored \"{fileName}\" (locale: {locale}, {strings.Count} strings extracted). CSV is ready for download.";
+            RefreshFileLists();
+        }
+        catch (Exception ex)
+        {
+            uploadError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task OnTranslatedFileSelected(InputFileChangeEventArgs e)
+    {
+        csvError = null;
+        csvSuccess = null;
+        csvWarnings = null;
+        isProcessing = true;
+
+        try
+        {
+            var file = e.File;
+            var uploadFileName = file.Name;
+            var extension = Path.GetExtension(uploadFileName).ToLowerInvariant();
+            var isXlsx = extension == ".xlsx";
+
+            // Read file bytes
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var fileBytes = ms.ToArray();
+
+            if (isXlsx)
+            {
+                // Check if multi-sheet XLSX (each sheet = a language)
+                var (languages, multiTranslations, xlsxOriginals) = LocalizationService.ParseTranslatedXlsx(fileBytes);
+
+                // Try to find base name from filename
+                var baseName = FileStorageService.ParseBaseName(uploadFileName);
+                if (baseName == null)
+                {
+                    baseName = Path.GetFileNameWithoutExtension(uploadFileName)
+                        .Replace("_strings", "", StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (languages.Count > 0)
+                {
+                    var source = FileStorage.FindSourceByBaseName(baseName);
+                    if (source == null)
+                    {
+                        csvError = $"No source HTML found matching \"{baseName}\". Upload the source HTML first.";
+                        return;
+                    }
+
+                    var sourceHtml = FileStorage.GetSourceContent(source.FileName);
+                    if (sourceHtml == null) { csvError = "Source HTML file could not be read."; return; }
+
+                    var allWarnings = new List<string>();
+                    var generatedCount = 0;
+
+                    foreach (var lang in languages)
+                    {
+                        var (localizedHtml, warnings) = LocalizationService.GenerateLocalizedHtml(
+                            sourceHtml, xlsxOriginals, multiTranslations[lang]);
+
+                        var localeParts = lang.Split('-');
+                        var outputFileName = localeParts.Length == 2
+                            ? $"{baseName}_{localeParts[0].ToLowerInvariant()}-{localeParts[1].ToLowerInvariant()}.html"
+                            : $"{baseName}_{lang.ToLowerInvariant()}.html";
+
+                        await FileStorage.StoreGeneratedAsync(outputFileName, localizedHtml);
+                        generatedCount++;
+                        allWarnings.AddRange(warnings.Select(w => $"[{lang}] {w}"));
+                    }
+
+                    csvWarnings = allWarnings;
+                    csvSuccess = $"Generated {generatedCount} localized file(s) for languages: {string.Join(", ", languages)} (from source \"{source.FileName}\").";
+                    RefreshFileLists();
+                    return;
+                }
+
+                // Single-sheet XLSX: fall through to single-language logic
+                var targetLocale = FileStorageService.ParseLocale(uploadFileName);
+
+                if (targetLocale == null)
+                {
+                    csvError = $"Could not detect target locale from filename \"{uploadFileName}\". " +
+                        "For single-sheet XLSX, save the file with the target locale in the name (e.g. \"email_K_es-es.xlsx\"). " +
+                        "Or use multiple sheets named with locale codes (e.g. \"es-ES\", \"fr-FR\").";
+                    return;
+                }
+
+                var singleSource = FileStorage.FindSourceByBaseName(baseName);
+                if (singleSource == null) { csvError = $"No source HTML found matching \"{baseName}\". Upload the source HTML first."; return; }
+
+                var singleSourceHtml = FileStorage.GetSourceContent(singleSource.FileName);
+                if (singleSourceHtml == null) { csvError = "Source HTML file could not be read."; return; }
+
+                var (singleOriginals, singleTranslations) = LocalizationService.ParseSimpleTranslatedXlsx(fileBytes);
+
+                if (singleTranslations.Count == 0) { csvError = "No translations found. Make sure the \"Translation\" column is filled in."; return; }
+
+                var (singleHtml, singleWarnings) = LocalizationService.GenerateLocalizedHtml(
+                    singleSourceHtml, singleOriginals, singleTranslations);
+
+                var singleLocaleParts = targetLocale.Split('-');
+                var singleOutputFileName = $"{baseName}_{singleLocaleParts[0].ToLowerInvariant()}-{singleLocaleParts[1].ToLowerInvariant()}.html";
+
+                await FileStorage.StoreGeneratedAsync(singleOutputFileName, singleHtml);
+                csvWarnings = singleWarnings;
+                csvSuccess = $"Generated \"{singleOutputFileName}\" with {singleTranslations.Count} translations applied (from source \"{singleSource.FileName}\").";
+                RefreshFileLists();
+            }
+            else
+            {
+                // CSV path (existing logic)
+                var targetLocale = FileStorageService.ParseLocale(uploadFileName);
+                var baseName = FileStorageService.ParseBaseName(uploadFileName);
+
+                if (targetLocale == null || baseName == null)
+                {
+                    csvError = $"Could not detect target locale from CSV filename \"{uploadFileName}\". " +
+                        "Save the CSV with the target locale in the name, e.g. \"email_K_es-es.csv\".";
+                    return;
+                }
+
+                var source = FileStorage.FindSourceByBaseName(baseName);
+                if (source == null) { csvError = $"No source HTML found matching base name \"{baseName}\". Upload the source HTML first."; return; }
+
+                var sourceHtml = FileStorage.GetSourceContent(source.FileName);
+                if (sourceHtml == null) { csvError = "Source HTML file could not be read."; return; }
+
+                var (originals, translations) = LocalizationService.ParseSimpleTranslatedCsv(fileBytes);
+
+                if (translations.Count == 0) { csvError = "No translations found. Make sure the \"Translation\" column is filled in."; return; }
+
+                var (localizedHtml, warnings) = LocalizationService.GenerateLocalizedHtml(sourceHtml, originals, translations);
+
+                var localeParts = targetLocale.Split('-');
+                var outputFileName = $"{baseName}_{localeParts[0].ToLowerInvariant()}-{localeParts[1].ToLowerInvariant()}.html";
+
+                await FileStorage.StoreGeneratedAsync(outputFileName, localizedHtml);
+                csvWarnings = warnings;
+                csvSuccess = $"Generated \"{outputFileName}\" with {translations.Count} translations applied (from source \"{source.FileName}\").";
+                RefreshFileLists();
+            }
+        }
+        catch (Exception ex)
+        {
+            csvError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task DownloadCsv(string sourceFileName)
+    {
+        var csvFileName = Path.GetFileNameWithoutExtension(sourceFileName) + "_strings.csv";
+        var csvBytes = FileStorage.GetCsvBytes(csvFileName);
+        if (csvBytes == null) return;
+
+        await JS.InvokeVoidAsync("downloadFile", csvFileName, "text/csv", csvBytes);
+    }
+
+    private async Task DownloadXlsx(string sourceFileName)
+    {
+        var sourceHtml = FileStorage.GetSourceContent(sourceFileName);
+        if (sourceHtml == null) return;
+
+        var strings = LocalizationService.ExtractStrings(sourceHtml);
+        var xlsxBytes = LocalizationService.ExportToXlsx(strings);
+        var xlsxFileName = Path.GetFileNameWithoutExtension(sourceFileName) + "_strings.xlsx";
+
+        await JS.InvokeVoidAsync("downloadFile", xlsxFileName,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsxBytes);
+    }
+
+    private async Task DownloadGenerated(string fileName)
+    {
+        var bytes = FileStorage.GetGeneratedBytes(fileName);
+        if (bytes == null) return;
+
+        await JS.InvokeVoidAsync("downloadFile", fileName, "text/html", bytes);
+    }
+
+    private void DeleteSource(string fileName)
+    {
+        FileStorage.DeleteSource(fileName);
+        RefreshFileLists();
+    }
+
+    private void DeleteGenerated(string fileName)
+    {
+        FileStorage.DeleteGenerated(fileName);
+        RefreshFileLists();
+    }
+
+    private void StartEditing(string fileName)
+    {
+        editSaveSuccess = null;
+        var content = FileStorage.GetSourceContent(fileName);
+        if (content == null) return;
+        editingFileName = fileName;
+        editingHtmlContent = content;
+    }
+
+    private async Task OnEditorSave(string updatedHtml)
+    {
+        if (editingFileName == null) return;
+
+        // Save updated HTML
+        await FileStorage.StoreSourceAsync(editingFileName, updatedHtml);
+
+        // Re-extract strings and regenerate CSV
+        var strings = LocalizationService.ExtractStrings(updatedHtml);
+        var csvBytes = LocalizationService.ExportToCsv(strings);
+        var csvFileName = Path.GetFileNameWithoutExtension(editingFileName) + "_strings.csv";
+        await FileStorage.StoreCsvAsync(csvFileName, csvBytes);
+
+        editSaveSuccess = $"Saved changes to \"{editingFileName}\" ({strings.Count} strings re-extracted).";
+        editingHtmlContent = updatedHtml;
+        RefreshFileLists();
+    }
+
+    private void OnEditorCancel()
+    {
+        editingFileName = null;
+        editingHtmlContent = string.Empty;
+        editSaveSuccess = null;
+    }
+}

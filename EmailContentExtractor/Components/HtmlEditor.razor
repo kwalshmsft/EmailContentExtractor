@@ -1,0 +1,197 @@
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<div class="html-editor-container">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm @(isRawMode ? "btn-outline-secondary" : "btn-secondary")"
+                    @onclick="SwitchToWysiwyg">
+                🖊 Visual Editor
+            </button>
+            <button type="button" class="btn btn-sm @(isRawMode ? "btn-secondary" : "btn-outline-secondary")"
+                    @onclick="SwitchToRaw">
+                &lt;/&gt; Raw HTML
+            </button>
+        </div>
+        <div>
+            <button class="btn btn-sm btn-success me-1" @onclick="Save" disabled="@isSaving">
+                @if (isSaving)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                else
+                {
+                    <text>💾 Save</text>
+                }
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="Cancel">Cancel</button>
+        </div>
+    </div>
+
+    @if (!isRawMode)
+    {
+        <div class="wysiwyg-wrapper" style="position: relative;">
+            <iframe @ref="iframeRef" id="@iframeId" class="wysiwyg-iframe"></iframe>
+        </div>
+    }
+    else
+    {
+        <textarea class="form-control raw-html-textarea" @bind="rawHtml" @bind:event="oninput"></textarea>
+    }
+
+    @* Image URL editor modal *@
+    @if (showImageEditor)
+    {
+        <div class="image-editor-overlay" @onclick="CloseImageEditor">
+            <div class="image-editor-dialog" @onclick:stopPropagation="true">
+                <h6>Edit Image URL</h6>
+                @if (currentImagePreviewUrl != null)
+                {
+                    <div class="mb-2 text-center">
+                        <img src="@currentImagePreviewUrl" style="max-width: 100%; max-height: 150px;" alt="Preview" />
+                    </div>
+                }
+                <div class="mb-2">
+                    <label class="form-label">Image URL</label>
+                    <input type="text" class="form-control form-control-sm" @bind="currentImageUrl" @bind:event="oninput" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Alt Text</label>
+                    <input type="text" class="form-control form-control-sm" @bind="currentImageAlt" @bind:event="oninput" />
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button class="btn btn-sm btn-outline-secondary me-1" @onclick="CloseImageEditor">Cancel</button>
+                    <button class="btn btn-sm btn-primary" @onclick="ApplyImageChange">Apply</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string HtmlContent { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private ElementReference iframeRef;
+    private string iframeId = $"wysiwyg-{Guid.NewGuid():N}";
+    private string rawHtml = string.Empty;
+    private bool isRawMode;
+    private bool isSaving;
+    private bool isInitialized;
+
+    // Image editor state
+    private bool showImageEditor;
+    private string? currentImageUrl;
+    private string? currentImageAlt;
+    private string? currentImagePreviewUrl;
+    private int currentImageIndex;
+
+    private DotNetObjectReference<HtmlEditor>? dotNetRef;
+
+    protected override void OnParametersSet()
+    {
+        rawHtml = HtmlContent;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("htmlEditor.init", iframeId, HtmlContent, dotNetRef);
+            isInitialized = true;
+        }
+    }
+
+    private async Task SwitchToRaw()
+    {
+        if (!isRawMode && isInitialized)
+        {
+            rawHtml = await JS.InvokeAsync<string>("htmlEditor.getContent", iframeId);
+        }
+        isRawMode = true;
+    }
+
+    private async Task SwitchToWysiwyg()
+    {
+        isRawMode = false;
+        // Need to wait for iframe to render, then load content
+        await Task.Yield();
+        StateHasChanged();
+        await Task.Delay(50);
+        if (isInitialized)
+        {
+            await JS.InvokeVoidAsync("htmlEditor.setContent", iframeId, rawHtml);
+        }
+        else
+        {
+            dotNetRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("htmlEditor.init", iframeId, rawHtml, dotNetRef);
+            isInitialized = true;
+        }
+    }
+
+    private async Task Save()
+    {
+        isSaving = true;
+        try
+        {
+            string content;
+            if (isRawMode)
+            {
+                content = rawHtml;
+            }
+            else if (isInitialized)
+            {
+                content = await JS.InvokeAsync<string>("htmlEditor.getContent", iframeId);
+            }
+            else
+            {
+                content = rawHtml;
+            }
+
+            await OnSave.InvokeAsync(content);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
+    [JSInvokable]
+    public void OnImageClicked(int imageIndex, string src, string alt)
+    {
+        currentImageIndex = imageIndex;
+        currentImageUrl = src;
+        currentImageAlt = alt;
+        currentImagePreviewUrl = src;
+        showImageEditor = true;
+        StateHasChanged();
+    }
+
+    private async Task ApplyImageChange()
+    {
+        if (isInitialized && !isRawMode)
+        {
+            await JS.InvokeVoidAsync("htmlEditor.updateImage", iframeId, currentImageIndex,
+                currentImageUrl ?? "", currentImageAlt ?? "");
+        }
+        showImageEditor = false;
+    }
+
+    private void CloseImageEditor()
+    {
+        showImageEditor = false;
+    }
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
+    }
+}

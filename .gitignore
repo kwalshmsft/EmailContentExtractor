@@ -1,0 +1,22 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE
+.vs/
+.vscode/
+*.swp
+
+# App data
+EmailContentExtractor/Data/sources/
+EmailContentExtractor/Data/generated/
+EmailContentExtractor/Data/csv/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

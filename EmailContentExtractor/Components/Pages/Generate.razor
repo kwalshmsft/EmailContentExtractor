@@ -1,0 +1,198 @@
+@page "/generate"
+@using EmailContentExtractor.Services
+@inject HtmlLocalizationService LocalizationService
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Generate Localized HTML</PageTitle>
+
+<h1>Generate Localized HTML</h1>
+<p>Upload the original HTML email and a translated CSV file to generate localized versions.</p>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Original HTML file</label>
+        <InputFile OnChange="OnHtmlSelected" accept=".html,.htm" class="form-control" />
+        @if (htmlFileName != null)
+        {
+            <small class="text-success">✓ @htmlFileName loaded</small>
+        }
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Translated CSV or XLSX file</label>
+        <InputFile OnChange="OnTranslationFileSelected" accept=".csv,.xlsx" class="form-control" />
+        @if (translationFileName != null)
+        {
+            <small class="text-success">✓ @translationFileName loaded (@languageCount language(s) detected)</small>
+        }
+    </div>
+</div>
+
+@if (htmlContent != null && translationBytes != null)
+{
+    <button class="btn btn-success btn-lg" @onclick="GenerateFiles" disabled="@isProcessing">
+        @if (isProcessing)
+        {
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            <text> Generating...</text>
+        }
+        else
+        {
+            <text>🌐 Generate Localized Files</text>
+        }
+    </button>
+}
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@if (allWarnings != null)
+{
+    <div class="mt-4">
+        @foreach (var (lang, warnings) in allWarnings)
+        {
+            if (warnings.Count > 0)
+            {
+                <div class="alert alert-warning">
+                    <strong>⚠ Warnings for '@lang':</strong>
+                    <ul class="mb-0 mt-1">
+                        @foreach (var w in warnings)
+                        {
+                            <li>@w</li>
+                        }
+                    </ul>
+                </div>
+            }
+        }
+    </div>
+}
+
+@if (zipReady)
+{
+    <div class="alert alert-success mt-3">
+        <strong>✅ Localized files generated successfully!</strong>
+        <button class="btn btn-outline-success ms-3" @onclick="DownloadZip">⬇ Download ZIP</button>
+    </div>
+}
+
+@code {
+    private string? htmlContent;
+    private string? htmlFileName;
+    private byte[]? translationBytes;
+    private string? translationFileName;
+    private bool isXlsx;
+    private int languageCount;
+    private byte[]? zipBytes;
+    private Dictionary<string, List<string>>? allWarnings;
+    private bool zipReady;
+    private bool isProcessing;
+    private string? errorMessage;
+
+    private async Task OnHtmlSelected(InputFileChangeEventArgs e)
+    {
+        errorMessage = null;
+        zipReady = false;
+        allWarnings = null;
+
+        try
+        {
+            var file = e.File;
+            htmlFileName = file.Name;
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            htmlContent = await reader.ReadToEndAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error reading HTML file: {ex.Message}";
+            htmlContent = null;
+            htmlFileName = null;
+        }
+    }
+
+    private async Task OnTranslationFileSelected(InputFileChangeEventArgs e)
+    {
+        errorMessage = null;
+        zipReady = false;
+        allWarnings = null;
+
+        try
+        {
+            var file = e.File;
+            translationFileName = file.Name;
+            isXlsx = Path.GetExtension(translationFileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase);
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            translationBytes = ms.ToArray();
+
+            // Preview: detect languages
+            if (isXlsx)
+            {
+                var (languages, _, _) = LocalizationService.ParseTranslatedXlsx(translationBytes);
+                languageCount = languages.Count;
+            }
+            else
+            {
+                var (languages, _, _) = LocalizationService.ParseTranslatedCsv(translationBytes);
+                languageCount = languages.Count;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error reading translation file: {ex.Message}";
+            translationBytes = null;
+            translationFileName = null;
+        }
+    }
+
+    private async Task GenerateFiles()
+    {
+        if (htmlContent == null || translationBytes == null || htmlFileName == null) return;
+
+        errorMessage = null;
+        isProcessing = true;
+        allWarnings = null;
+        zipReady = false;
+
+        try
+        {
+            var bytes = translationBytes;
+            var useXlsx = isXlsx;
+            await Task.Run(() =>
+            {
+                if (useXlsx)
+                {
+                    (zipBytes, allWarnings) = LocalizationService.GenerateLocalizedZipFromXlsx(
+                        htmlContent, htmlFileName, bytes);
+                }
+                else
+                {
+                    (zipBytes, allWarnings) = LocalizationService.GenerateLocalizedZip(
+                        htmlContent, htmlFileName, bytes);
+                }
+            });
+
+            zipReady = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error generating localized files: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task DownloadZip()
+    {
+        if (zipBytes == null || htmlFileName == null) return;
+
+        var zipName = Path.GetFileNameWithoutExtension(htmlFileName) + "_localized.zip";
+        await JS.InvokeVoidAsync("downloadFile", zipName, "application/zip", zipBytes);
+    }
+}
