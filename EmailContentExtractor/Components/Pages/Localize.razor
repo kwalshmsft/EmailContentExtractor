@@ -5,8 +5,6 @@
 @inject FileStorageService FileStorage
 @inject IJSRuntime JS
 @inject NavigationManager Nav
-@rendermode InteractiveServer
-
 <PageTitle>Localize Emails</PageTitle>
 
 <h1>Email Localization</h1>
@@ -61,7 +59,7 @@
                             {
                                 <tr>
                                     <td>
-                                        <a href="@($"api/files/sources/{src.FileName}")" target="_blank">@src.FileName</a>
+                                        <a href="#" @onclick="() => PreviewSource(src.FileName)" @onclick:preventDefault>@src.FileName</a>
                                     </td>
                                     <td><span class="badge bg-info">@(src.Locale ?? "unknown")</span></td>
                                     <td>
@@ -171,7 +169,7 @@
                             {
                                 <tr>
                                     <td>
-                                        <a href="@($"api/files/generated/{gen.FileName}")" target="_blank">@gen.FileName</a>
+                                        <a href="#" @onclick="() => PreviewGenerated(gen.FileName)" @onclick:preventDefault>@gen.FileName</a>
                                     </td>
                                     <td><span class="badge bg-success">@(gen.Locale ?? "unknown")</span></td>
                                     <td>
@@ -507,5 +505,25 @@
         editingFileName = null;
         editingHtmlContent = string.Empty;
         editSaveSuccess = null;
+    }
+
+    private async Task PreviewSource(string fileName)
+    {
+        var content = FileStorage.GetSourceContent(fileName);
+        if (content != null)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            await JS.InvokeVoidAsync("openBlobUrl", bytes, "text/html", fileName);
+        }
+    }
+
+    private async Task PreviewGenerated(string fileName)
+    {
+        var content = FileStorage.GetGeneratedContent(fileName);
+        if (content != null)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            await JS.InvokeVoidAsync("openBlobUrl", bytes, "text/html", fileName);
+        }
     }
 }

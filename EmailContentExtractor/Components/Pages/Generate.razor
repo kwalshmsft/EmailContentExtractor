@@ -2,8 +2,6 @@
 @using EmailContentExtractor.Services
 @inject HtmlLocalizationService LocalizationService
 @inject IJSRuntime JS
-@rendermode InteractiveServer
-
 <PageTitle>Generate Localized HTML</PageTitle>
 
 <h1>Generate Localized HTML</h1>
@@ -162,19 +160,16 @@
         {
             var bytes = translationBytes;
             var useXlsx = isXlsx;
-            await Task.Run(() =>
+            if (useXlsx)
             {
-                if (useXlsx)
-                {
-                    (zipBytes, allWarnings) = LocalizationService.GenerateLocalizedZipFromXlsx(
-                        htmlContent, htmlFileName, bytes);
-                }
-                else
-                {
-                    (zipBytes, allWarnings) = LocalizationService.GenerateLocalizedZip(
-                        htmlContent, htmlFileName, bytes);
-                }
-            });
+                (zipBytes, allWarnings) = LocalizationService.GenerateLocalizedZipFromXlsx(
+                    htmlContent, htmlFileName, bytes);
+            }
+            else
+            {
+                (zipBytes, allWarnings) = LocalizationService.GenerateLocalizedZip(
+                    htmlContent, htmlFileName, bytes);
+            }
 
             zipReady = true;
         }
