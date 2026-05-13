@@ -1,0 +1,76 @@
+@page "/how-to"
+
+<PageTitle>How To Use</PageTitle>
+
+<h1>Iris Content Import — How to Use</h1>
+
+<div class="mt-4">
+
+    <h3>Step 1 — Prepare your localized content <span class="badge bg-secondary">Web App</span></h3>
+    <ol>
+        <li>Create your original HTML content file. The subject line for the email needs to go into the <code>&lt;title&gt;</code> tag in the headers.</li>
+        <li>Go to the web app's <strong>Localize</strong> tab and upload the HTML file into the first section.</li>
+        <li>Download the CSV or XLSX strings file for localization.</li>
+        <li>Fill in translations (or upload a multi-sheet XLSX with one sheet per locale).</li>
+        <li>Upload the translated file — localized HTML files will be generated.</li>
+    </ol>
+
+    <hr />
+
+    <h3>Step 2 — Export XML from Iris Content <span class="badge bg-secondary">ICMS</span></h3>
+    <ol>
+        <li>In ICMS, create the content object you're going to work with using the <strong>IrisEmailTemplate</strong> content type. This will be under the InvariantCulture tab. Fill in the Subject content, PlainTextBody content, and HtmlBodyFormat content. <em>Note: Any content will do — can be as simple as "Test" in each.</em></li>
+        <li>Save the file, check it in, and then right click on the file name and choose <strong>"Export for localization."</strong></li>
+        <li>Save the XML file to your desktop.</li>
+    </ol>
+
+    <hr />
+
+    <h3>Step 3 — Generate the import package <span class="badge bg-secondary">Web App</span></h3>
+    <ol>
+        <li>Go to the <strong>Iris Content Import</strong> page in the tool.</li>
+        <li>Upload the XML file from Step 2.</li>
+        <li>The tool will show the content item name, ID, and existing variants.</li>
+        <li>Select the source file that matches this content item from the dropdown.</li>
+        <li>Review the list of locales that will be generated — <span class="badge bg-success">green</span> badges are new, <span class="badge bg-warning text-dark">yellow</span> badges already exist in Iris.</li>
+        <li>Click <strong>📦 Generate Import Package</strong>.</li>
+        <li>Click <strong>⬇ Download ZIP</strong>.</li>
+        <li>
+            Extract the downloaded ZIP to a folder (e.g. <code>D:\ContentForImport\NewImportTest\</code>). The extracted folder will contain locale-named subfolders:
+            <pre class="bg-light p-2 mt-2"><code>NewImportTest\
+  fr-FR\
+    NewImportTest_991667d0-...xml
+  de-DE\
+    NewImportTest_991667d0-...xml</code></pre>
+        </li>
+    </ol>
+
+    <hr />
+
+    <h3>Step 4 — Import into Iris Content <span class="badge bg-secondary">ICMS</span></h3>
+    <ol>
+        <li>In Iris Content, click on the <strong>"Import from Localization"</strong> link at the top of the page.</li>
+        <li>Point it to the extracted folder from Step 3.</li>
+        <li>Iris Content will read each subfolder name as the target locale and import the variant content.</li>
+        <li>Double click the content object to verify localized versions have been imported.</li>
+    </ol>
+
+    <hr />
+
+    <h3>Step 5 — Recreate InvariantCulture <span class="badge bg-secondary">ICMS</span></h3>
+    <ol>
+        <li>Check out the content object.</li>
+        <li>Delete the InvariantCulture content by clicking the red X.</li>
+        <li>Recreate it by clicking <strong>"Add new"</strong> and selecting <strong>"Invariant Culture"</strong> from the Choose languages and locales section. Select <strong>Copy from</strong> one of the localized locales you imported in Step 4.</li>
+    </ol>
+
+    <hr />
+
+    <h3>What the tool generates for each locale</h3>
+    <ul>
+        <li><strong>Subject</strong> — extracted from the <code>&lt;title&gt;</code> tag of the HTML</li>
+        <li><strong>Plain text body</strong> — auto-generated from the HTML (no tags, links preserved inline)</li>
+        <li><strong>HTML body</strong> — the full localized HTML content</li>
+    </ul>
+
+</div>

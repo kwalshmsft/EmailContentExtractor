@@ -2,7 +2,7 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
-using ClosedXML.Excel;
+using MiniExcelLibs;
 using CsvHelper;
 using CsvHelper.Configuration;
 using HtmlAgilityPack;
@@ -473,37 +473,23 @@ public class HtmlLocalizationService
     /// </summary>
     public byte[] ExportToXlsx(List<LocalizableString> strings, string locale = "Strings")
     {
-        using var workbook = new XLWorkbook();
-        var ws = workbook.Worksheets.Add(locale);
-
-        // Header row
-        ws.Cell(1, 1).Value = "Key";
-        ws.Cell(1, 2).Value = "Type";
-        ws.Cell(1, 3).Value = "Original";
-        ws.Cell(1, 4).Value = "Translation";
-        ws.Cell(1, 5).Value = "Path";
-        ws.Cell(1, 6).Value = "Attribute";
-
-        var headerRange = ws.Range(1, 1, 1, 6);
-        headerRange.Style.Font.Bold = true;
-        headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
-
-        for (int i = 0; i < strings.Count; i++)
+        var rows = new List<Dictionary<string, object>>();
+        foreach (var s in strings)
         {
-            var row = i + 2;
-            var s = strings[i];
-            ws.Cell(row, 1).Value = s.Key;
-            ws.Cell(row, 2).Value = s.Type;
-            ws.Cell(row, 3).Value = s.Original;
-            // Column 4 (Translation) left empty
-            ws.Cell(row, 5).Value = s.Path;
-            ws.Cell(row, 6).Value = s.Attribute;
+            rows.Add(new Dictionary<string, object>
+            {
+                ["Key"] = s.Key,
+                ["Type"] = s.Type,
+                ["Original"] = s.Original,
+                ["Translation"] = "",
+                ["Path"] = s.Path,
+                ["Attribute"] = s.Attribute
+            });
         }
 
-        ws.Columns().AdjustToContents(1, 100);
-
         using var ms = new MemoryStream();
-        workbook.SaveAs(ms);
+        var sheets = new Dictionary<string, object> { [locale] = rows };
+        MiniExcel.SaveAs(ms, sheets);
         return ms.ToArray();
     }
 
@@ -515,10 +501,14 @@ public class HtmlLocalizationService
         ParseSimpleTranslatedXlsx(byte[] xlsxBytes)
     {
         using var ms = new MemoryStream(xlsxBytes);
-        using var workbook = new XLWorkbook(ms);
-        var ws = workbook.Worksheets.First();
+        var sheetNames = MiniExcel.GetSheetNames(ms);
+        if (sheetNames.Count == 0) return (new(), new());
 
-        return ParseSheetAsSimpleTranslation(ws);
+        ms.Position = 0;
+        var rows = MiniExcel.Query(ms, sheetName: sheetNames[0], useHeaderRow: true)
+            .Cast<IDictionary<string, object>>().ToList();
+
+        return ParseRowsAsSimpleTranslation(rows);
     }
 
     /// <summary>
@@ -530,42 +520,43 @@ public class HtmlLocalizationService
         ParseTranslatedXlsx(byte[] xlsxBytes)
     {
         using var ms = new MemoryStream(xlsxBytes);
-        using var workbook = new XLWorkbook(ms);
+        var sheetNames = MiniExcel.GetSheetNames(ms);
 
         var languages = new List<string>();
         var translations = new Dictionary<string, Dictionary<string, string>>();
         List<LocalizableString>? originals = null;
 
-        foreach (var ws in workbook.Worksheets)
+        foreach (var sheetName in sheetNames)
         {
-            var sheetName = ws.Name.Trim();
+            ms.Position = 0;
+            var rows = MiniExcel.Query(ms, sheetName: sheetName, useHeaderRow: true)
+                .Cast<IDictionary<string, object>>().ToList();
 
-            // Skip template/instruction sheets
-            if (sheetName.Equals("Strings", StringComparison.OrdinalIgnoreCase) ||
-                sheetName.Equals("Template", StringComparison.OrdinalIgnoreCase))
+            var trimmedName = sheetName.Trim();
+
+            if (trimmedName.Equals("Strings", StringComparison.OrdinalIgnoreCase) ||
+                trimmedName.Equals("Template", StringComparison.OrdinalIgnoreCase))
             {
-                // Use the first sheet for originals if not yet set
                 if (originals == null)
                 {
-                    var (sheetOriginals, _) = ParseSheetAsSimpleTranslation(ws);
+                    var (sheetOriginals, _) = ParseRowsAsSimpleTranslation(rows);
                     originals = sheetOriginals;
                 }
                 continue;
             }
 
-            // Validate sheet name looks like a locale
-            if (!LocalePattern.IsMatch(sheetName))
+            if (!LocalePattern.IsMatch(trimmedName))
                 continue;
 
-            var (sheetOriginals2, sheetTranslations) = ParseSheetAsSimpleTranslation(ws);
+            var (sheetOriginals2, sheetTranslations) = ParseRowsAsSimpleTranslation(rows);
 
             if (originals == null)
                 originals = sheetOriginals2;
 
             if (sheetTranslations.Count > 0)
             {
-                languages.Add(sheetName);
-                translations[sheetName] = sheetTranslations;
+                languages.Add(trimmedName);
+                translations[trimmedName] = sheetTranslations;
             }
         }
 
@@ -573,43 +564,30 @@ public class HtmlLocalizationService
     }
 
     /// <summary>
-    /// Parses a single worksheet into originals and translations.
+    /// Parses rows (from MiniExcel) into originals and translations.
     /// Expects columns: Key, Type, Original, Translation, Path, Attribute.
     /// </summary>
     private static (List<LocalizableString> originals, Dictionary<string, string> translations)
-        ParseSheetAsSimpleTranslation(IXLWorksheet ws)
+        ParseRowsAsSimpleTranslation(List<IDictionary<string, object>> rows)
     {
         var originals = new List<LocalizableString>();
         var translations = new Dictionary<string, string>();
 
-        var headerRow = ws.Row(1);
-        var headers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        for (int col = 1; col <= headerRow.LastCellUsed()?.Address.ColumnNumber; col++)
+        foreach (var row in rows)
         {
-            var val = headerRow.Cell(col).GetString().Trim();
-            if (!string.IsNullOrEmpty(val))
-                headers[val] = col;
-        }
-
-        if (!headers.ContainsKey("Key")) return (originals, translations);
-
-        var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
-
-        for (int row = 2; row <= lastRow; row++)
-        {
-            var key = GetCellString(ws, row, headers, "Key");
+            var key = GetRowString(row, "Key");
             if (string.IsNullOrWhiteSpace(key)) continue;
 
             originals.Add(new LocalizableString
             {
                 Key = key,
-                Type = GetCellString(ws, row, headers, "Type"),
-                Original = GetCellString(ws, row, headers, "Original"),
-                Path = GetCellString(ws, row, headers, "Path"),
-                Attribute = GetCellString(ws, row, headers, "Attribute")
+                Type = GetRowString(row, "Type"),
+                Original = GetRowString(row, "Original"),
+                Path = GetRowString(row, "Path"),
+                Attribute = GetRowString(row, "Attribute")
             });
 
-            var translation = GetCellString(ws, row, headers, "Translation");
+            var translation = GetRowString(row, "Translation");
             if (!string.IsNullOrWhiteSpace(translation))
             {
                 translations[key] = translation;
@@ -619,9 +597,15 @@ public class HtmlLocalizationService
         return (originals, translations);
     }
 
-    private static string GetCellString(IXLWorksheet ws, int row, Dictionary<string, int> headers, string columnName)
+    private static string GetRowString(IDictionary<string, object> row, string columnName)
     {
-        return headers.TryGetValue(columnName, out var col) ? ws.Cell(row, col).GetString() : string.Empty;
+        if (row.TryGetValue(columnName, out var val) && val != null)
+            return val.ToString() ?? string.Empty;
+        // Case-insensitive fallback
+        var match = row.Keys.FirstOrDefault(k => k.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+        if (match != null && row[match] != null)
+            return row[match].ToString() ?? string.Empty;
+        return string.Empty;
     }
 
     /// <summary>
