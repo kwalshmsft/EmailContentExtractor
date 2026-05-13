@@ -447,7 +447,8 @@
         if (sourceHtml == null) return;
 
         var strings = LocalizationService.ExtractStrings(sourceHtml);
-        var xlsxBytes = LocalizationService.ExportToXlsx(strings);
+        var locale = FileStorageService.ParseLocale(sourceFileName) ?? "Strings";
+        var xlsxBytes = LocalizationService.ExportToXlsx(strings, locale);
         var xlsxFileName = Path.GetFileNameWithoutExtension(sourceFileName) + "_strings.xlsx";
 
         await JS.InvokeVoidAsync("downloadFile", xlsxFileName,

@@ -98,6 +98,14 @@ public class IrisContentImportService
         // Build per-locale XML files (skip InvariantCulture — import ignores it)
         var localeXmlFiles = new List<(string folder, string xml)>();
 
+        // Include the source file under its locale folder
+        var sourceLocale = FileStorageService.ParseLocale(sourceFileName);
+        if (sourceLocale != null)
+        {
+            localeXmlFiles.Add((sourceLocale, BuildVariantXml(doc, sourceHtml)));
+            variants.Add(sourceLocale);
+        }
+
         // Each generated locale gets its own subfolder
         foreach (var (locale, html) in localizedFiles)
         {

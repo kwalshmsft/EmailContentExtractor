@@ -233,14 +233,23 @@
         var baseName = FileStorageService.ParseBaseName(selectedSource);
         if (baseName == null) return new();
 
-        // Only generated locales — source content goes to InvariantCulture
-        return FileStorage.GetAllGenerated()
+        var locales = new List<string>();
+
+        // Include source locale
+        var sourceLocale = FileStorageService.ParseLocale(selectedSource);
+        if (sourceLocale != null)
+            locales.Add(sourceLocale);
+
+        // Add generated locales
+        var generated = FileStorage.GetAllGenerated()
             .Where(g => g.BaseName != null &&
                         g.BaseName.Equals(baseName, StringComparison.OrdinalIgnoreCase) &&
                         g.Locale != null)
             .Select(g => g.Locale!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        locales.AddRange(generated);
+        return locales;
     }
 
     private void GenerateImportPackage()

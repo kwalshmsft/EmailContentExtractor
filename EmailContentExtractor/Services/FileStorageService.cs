@@ -8,7 +8,7 @@ public class FileStorageService
     private readonly string _generatedDir;
     private readonly string _csvDir;
     private static readonly Regex LocalePattern = new(
-        @"_([a-zA-Z]{2}-[a-zA-Z]{2})(_strings)?\.[^.]+$",
+        @"_([a-zA-Z]{2}-[a-zA-Z]{2})(_strings)?(\s*\(\d+\))?\.[^.]+$",
         RegexOptions.Compiled);
 
     public FileStorageService(IWebHostEnvironment env)
@@ -47,6 +47,8 @@ public class FileStorageService
         if (!match.Success) return null;
 
         var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+        // Strip trailing browser duplicate suffix like " (2)"
+        nameWithoutExt = Regex.Replace(nameWithoutExt, @"\s*\(\d+\)$", "");
         // Strip trailing "_strings" if present (from downloaded CSV filenames)
         if (nameWithoutExt.EndsWith("_strings", StringComparison.OrdinalIgnoreCase))
             nameWithoutExt = nameWithoutExt[..^"_strings".Length];

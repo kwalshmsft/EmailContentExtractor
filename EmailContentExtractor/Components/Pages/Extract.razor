@@ -99,7 +99,8 @@ else if (extractedStrings != null && extractedStrings.Count == 0)
 
             extractedStrings = LocalizationService.ExtractStrings(html);
             csvBytes = LocalizationService.ExportToCsv(extractedStrings);
-            xlsxBytes = LocalizationService.ExportToXlsx(extractedStrings);
+            var locale = FileStorageService.ParseLocale(fileName) ?? "Strings";
+            xlsxBytes = LocalizationService.ExportToXlsx(extractedStrings, locale);
         }
         catch (Exception ex)
         {

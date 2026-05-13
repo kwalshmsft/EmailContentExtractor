@@ -468,13 +468,13 @@ public class HtmlLocalizationService
         @"^[a-zA-Z]{2,3}(-[a-zA-Z]{2,4})?$", RegexOptions.Compiled);
 
     /// <summary>
-    /// Exports extracted strings to an Excel workbook with a single "Strings" sheet.
-    /// Includes an empty "Translation" column for the user to fill in.
+    /// Exports extracted strings to an Excel workbook.
+    /// The sheet is named with the source locale. Includes an empty "Translation" column.
     /// </summary>
-    public byte[] ExportToXlsx(List<LocalizableString> strings)
+    public byte[] ExportToXlsx(List<LocalizableString> strings, string locale = "Strings")
     {
         using var workbook = new XLWorkbook();
-        var ws = workbook.Worksheets.Add("Strings");
+        var ws = workbook.Worksheets.Add(locale);
 
         // Header row
         ws.Cell(1, 1).Value = "Key";
