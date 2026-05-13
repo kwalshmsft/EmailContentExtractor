@@ -1,0 +1,22 @@
+{
+  "name": "EmailContentExtractor",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:8.0",
+  "forwardPorts": [5000],
+  "postCreateCommand": "cd EmailContentExtractor && dotnet restore",
+  "postStartCommand": "cd EmailContentExtractor && dotnet run --urls=http://0.0.0.0:5000",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit"
+      ]
+    }
+  },
+  "portsAttributes": {
+    "5000": {
+      "label": "EmailContentExtractor",
+      "onAutoForward": "openBrowser",
+      "visibility": "public"
+    }
+  }
+}
