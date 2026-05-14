@@ -143,8 +143,9 @@ public class IrisContentImportService
         var doc = new XDocument(originalDoc);
         var root = doc.Root!;
 
-        var subject = HtmlHelper.ExtractTitleText(html);
-        var plainText = ConvertHtmlToPlainText(html);
+        html = EscapeAtSymbols(html);
+        var subject = EscapeAtSymbols(HtmlHelper.ExtractTitleText(html));
+        var plainText = EscapeAtSymbols(ConvertHtmlToPlainText(html));
 
         foreach (var item in root.Elements("ExportedContentItem"))
         {
@@ -173,6 +174,16 @@ public class IrisContentImportService
         return doc.Declaration != null
             ? doc.Declaration.ToString() + "\n" + doc.Root!.ToString()
             : doc.Root!.ToString();
+    }
+
+    /// <summary>
+    /// Escapes single @ to @@ for ICMS, unless the content uses Razor syntax (@Model, @Context).
+    /// </summary>
+    private static string EscapeAtSymbols(string content)
+    {
+        if (string.IsNullOrEmpty(content)) return content;
+        if (content.Contains("@Model") || content.Contains("@Context")) return content;
+        return content.Replace("@@", "\x00").Replace("@", "@@").Replace("\x00", "@@");
     }
 
     /// <summary>
