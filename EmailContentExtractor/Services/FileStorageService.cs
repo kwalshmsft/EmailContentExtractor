@@ -9,11 +9,12 @@ public class FileStorageService
     private readonly Dictionary<string, byte[]> _csv = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly Regex LocalePattern = new(
-        @"_([a-zA-Z]{2}-[a-zA-Z]{2})(_strings)?(\s*\(\d+\))?\.[^.]+$",
+        @"_([a-zA-Z]{2,3}(?:-[a-zA-Z]{2,4})?)(_strings)?(\s*\(\d+\))?\.[^.]+$",
         RegexOptions.Compiled);
 
     /// <summary>
-    /// Parses locale from a filename like "email_K_en-au.html" → "en-AU".
+    /// Parses locale from a filename like "email_K_en-au.html" → "en-AU"
+    /// or "email_K_en.html" → "en".
     /// Returns null if no locale pattern is found.
     /// </summary>
     public static string? ParseLocale(string fileName)
@@ -23,7 +24,9 @@ public class FileStorageService
 
         var raw = match.Groups[1].Value;
         var parts = raw.Split('-');
-        return $"{parts[0].ToLowerInvariant()}-{parts[1].ToUpperInvariant()}";
+        if (parts.Length == 2)
+            return $"{parts[0].ToLowerInvariant()}-{parts[1].ToUpperInvariant()}";
+        return parts[0].ToLowerInvariant();
     }
 
     /// <summary>
