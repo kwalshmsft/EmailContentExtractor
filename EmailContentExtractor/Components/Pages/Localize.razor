@@ -3,6 +3,7 @@
 @using EmailContentExtractor.Services
 @inject HtmlLocalizationService LocalizationService
 @inject FileStorageService FileStorage
+@inject IrisContentImportService IrisService
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 <PageTitle>Localize Emails</PageTitle>
@@ -201,6 +202,162 @@
             </div>
         </div>
     }
+
+    @* ─── Step 3: Iris Content Import ─── *@
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">③ Iris Content Import</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Upload the <code>.xml</code> file exported from Iris Content to generate an import package with localized variants.
+                </p>
+                <InputFile OnChange="OnXmlSelected" accept=".xml" class="form-control" />
+
+                @if (irisUploadError != null)
+                {
+                    <div class="alert alert-danger mt-2">@irisUploadError</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (irisContentInfo != null)
+    {
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">📄 Content Items in XML</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>ID</th>
+                                <th>Existing Variants</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in irisContentInfo.Items)
+                            {
+                                <tr>
+                                    <td><strong>@item.Name</strong></td>
+                                    <td><code class="text-muted small">@item.Id</code></td>
+                                    <td>
+                                        @foreach (var v in item.ExistingVariants)
+                                        {
+                                            <span class="badge bg-secondary me-1">@v</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Select Source Content</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Source File</label>
+                        <select class="form-select" @bind="irisSelectedSource">
+                            <option value="">— Select a source file —</option>
+                            @foreach (var src in sourceFiles)
+                            {
+                                var genCount = GetIrisGeneratedCount(src);
+                                <option value="@src.FileName">
+                                    @src.FileName (@(src.Locale ?? "?")) — @genCount localized version(s)
+                                </option>
+                            }
+                        </select>
+                        <div class="form-text">
+                            Choose the source HTML file whose localized versions should be added as variants.
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(irisSelectedSource))
+                    {
+                        <div class="mb-3">
+                            <strong>Localized variants to generate:</strong>
+                            <div class="mt-1">
+                                @{
+                                    var availableLocales = GetIrisAvailableLocales();
+                                    var existingCultures = irisContentInfo.Items
+                                        .SelectMany(i => i.ExistingVariants)
+                                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                                }
+                                @foreach (var locale in availableLocales)
+                                {
+                                    if (existingCultures.Contains(locale))
+                                    {
+                                        <span class="badge bg-warning text-dark me-1" title="Already exists — will be skipped">
+                                            @locale ⚠ exists
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success me-1">@locale ✓ new</span>
+                                    }
+                                }
+                                @if (availableLocales.Count == 0)
+                                {
+                                    <span class="text-muted">No localized files found for this source.</span>
+                                }
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-lg" @onclick="GenerateIrisImportPackage" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                                <text> Processing...</text>
+                            }
+                            else
+                            {
+                                <text>📦 Generate Import Package</text>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (irisErrorMessage != null)
+    {
+        <div class="alert alert-danger mt-3">@irisErrorMessage</div>
+    }
+
+    @if (irisResult != null)
+    {
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Download Import Package</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success py-2">
+                        <strong>✅ Generated @irisResult.Variants.Count variant(s):</strong>
+                        @string.Join(", ", irisResult.Variants)
+                    </div>
+                    <p class="text-muted">
+                        The ZIP contains locale-named subfolders ready for Iris Content import.
+                        Extract the ZIP and point the import tool at the extracted folder.
+                    </p>
+                    <button class="btn btn-success btn-lg" @onclick="DownloadIrisZip">
+                        ⬇ Download ZIP
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @if (isProcessing)
@@ -228,6 +385,15 @@
     private string? editingFileName;
     private string editingHtmlContent = string.Empty;
     private string? editSaveSuccess;
+
+    // Iris Content Import state
+    private IrisContentInfo? irisContentInfo;
+    private string irisXmlContent = string.Empty;
+    private string irisXmlFileName = string.Empty;
+    private string irisSelectedSource = "";
+    private IrisImportResult? irisResult;
+    private string? irisUploadError;
+    private string? irisErrorMessage;
 
     protected override void OnInitialized()
     {
@@ -525,5 +691,110 @@
             var bytes = System.Text.Encoding.UTF8.GetBytes(content);
             await JS.InvokeVoidAsync("openBlobUrl", bytes, "text/html", fileName);
         }
+    }
+
+    // ─── Iris Content Import methods ───
+
+    private async Task OnXmlSelected(InputFileChangeEventArgs e)
+    {
+        irisUploadError = null;
+        irisErrorMessage = null;
+        irisContentInfo = null;
+        irisResult = null;
+        irisSelectedSource = "";
+
+        try
+        {
+            var file = e.File;
+            irisXmlFileName = file.Name;
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            irisXmlContent = await reader.ReadToEndAsync();
+
+            irisContentInfo = IrisService.ParseExport(irisXmlContent);
+
+            if (irisContentInfo.Items.Count == 0)
+            {
+                irisUploadError = "No ExportedContentItem elements found in the XML file.";
+                irisContentInfo = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            irisUploadError = $"Error reading XML file: {ex.Message}";
+            irisContentInfo = null;
+        }
+    }
+
+    private int GetIrisGeneratedCount(StoredFileInfo source)
+    {
+        if (source.BaseName == null) return 0;
+        return FileStorage.GetAllGenerated()
+            .Count(g => g.BaseName != null &&
+                        g.BaseName.Equals(source.BaseName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private List<string> GetIrisAvailableLocales()
+    {
+        if (string.IsNullOrEmpty(irisSelectedSource)) return new();
+
+        var baseName = FileStorageService.ParseBaseName(irisSelectedSource);
+        if (baseName == null) return new();
+
+        var locales = new List<string>();
+
+        var sourceLocale = FileStorageService.ParseLocale(irisSelectedSource);
+        if (sourceLocale != null)
+            locales.Add(sourceLocale);
+
+        var generated = FileStorage.GetAllGenerated()
+            .Where(g => g.BaseName != null &&
+                        g.BaseName.Equals(baseName, StringComparison.OrdinalIgnoreCase) &&
+                        g.Locale != null)
+            .Select(g => g.Locale!)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        locales.AddRange(generated);
+        return locales;
+    }
+
+    private void GenerateIrisImportPackage()
+    {
+        irisErrorMessage = null;
+        irisResult = null;
+        isProcessing = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(irisXmlContent))
+            {
+                irisErrorMessage = "No XML file loaded.";
+                return;
+            }
+            if (string.IsNullOrEmpty(irisSelectedSource))
+            {
+                irisErrorMessage = "Please select a source file.";
+                return;
+            }
+
+            irisResult = IrisService.GenerateImportZip(irisXmlContent, irisXmlFileName, irisSelectedSource);
+        }
+        catch (Exception ex)
+        {
+            irisErrorMessage = $"Error generating import package: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task DownloadIrisZip()
+    {
+        if (irisResult == null) return;
+
+        var zipName = Path.GetFileNameWithoutExtension(irisXmlFileName) + "_import.zip";
+        await JS.InvokeVoidAsync("downloadFile", zipName, "application/zip", irisResult.ZipBytes);
     }
 }
