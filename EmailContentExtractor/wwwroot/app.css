@@ -62,7 +62,8 @@ h1:focus {
     border: 1px solid #ced4da;
     border-radius: 0.25rem;
     overflow: hidden;
-    background: #fff;
+    background: #e9ecef;
+    transition: max-width 0.3s ease;
 }
 
 .wysiwyg-iframe {
@@ -70,6 +71,8 @@ h1:focus {
     height: calc(100vh - 200px);
     border: none;
     display: block;
+    background: #fff;
+    transition: width 0.3s ease;
 }
 
 .raw-html-textarea {

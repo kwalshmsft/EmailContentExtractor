@@ -12,6 +12,23 @@
                 &lt;/&gt; Raw HTML
             </button>
         </div>
+        @if (!isRawMode)
+        {
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm @(previewWidth == 0 ? "btn-info" : "btn-outline-info")"
+                        title="Full width" @onclick="() => SetPreviewWidth(0)">
+                    🖥 Desktop
+                </button>
+                <button type="button" class="btn btn-sm @(previewWidth == 768 ? "btn-info" : "btn-outline-info")"
+                        title="768px" @onclick="() => SetPreviewWidth(768)">
+                    📱 Tablet
+                </button>
+                <button type="button" class="btn btn-sm @(previewWidth == 375 ? "btn-info" : "btn-outline-info")"
+                        title="375px" @onclick="() => SetPreviewWidth(375)">
+                    📱 Mobile
+                </button>
+            </div>
+        }
         <div>
             <button class="btn btn-sm btn-success me-1" @onclick="Save" disabled="@isSaving">
                 @if (isSaving)
@@ -29,8 +46,9 @@
 
     @if (!isRawMode)
     {
-        <div class="wysiwyg-wrapper" style="position: relative;">
-            <iframe @ref="iframeRef" id="@iframeId" class="wysiwyg-iframe"></iframe>
+        <div class="wysiwyg-wrapper" style="@WrapperStyle">
+            <iframe @ref="iframeRef" id="@iframeId" class="wysiwyg-iframe"
+                    style="@(previewWidth > 0 ? $"width: {previewWidth}px;" : "")"></iframe>
         </div>
     }
     else
@@ -78,6 +96,13 @@
     private bool isRawMode;
     private bool isSaving;
     private bool isInitialized;
+    private int previewWidth; // 0 = full width
+
+    private string WrapperStyle => previewWidth > 0
+        ? $"max-width: {previewWidth}px; margin: 0 auto; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.15);"
+        : "";
+
+    private void SetPreviewWidth(int width) => previewWidth = width;
 
     // Image editor state
     private bool showImageEditor;
