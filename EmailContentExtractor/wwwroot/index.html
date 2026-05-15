@@ -42,6 +42,37 @@
         };
 
         window.htmlEditor = {
+            _attachHandlers: function (doc, dotNetRef) {
+                doc.addEventListener('click', function (e) {
+                    // Image click
+                    if (e.target.tagName === 'IMG') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var images = doc.querySelectorAll('img');
+                        var index = Array.prototype.indexOf.call(images, e.target);
+                        dotNetRef.invokeMethodAsync('OnImageClicked', index,
+                            e.target.getAttribute('src') || '',
+                            e.target.getAttribute('alt') || '');
+                        return;
+                    }
+                    // Link click — walk up to find <a>
+                    var el = e.target;
+                    while (el && el.tagName !== 'A' && el !== doc.body) {
+                        el = el.parentElement;
+                    }
+                    if (el && el.tagName === 'A') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var links = doc.querySelectorAll('a[href]');
+                        var index = Array.prototype.indexOf.call(links, el);
+                        dotNetRef.invokeMethodAsync('OnLinkClicked', index,
+                            el.getAttribute('href') || '',
+                            el.getAttribute('alias') || '',
+                            el.textContent || '');
+                    }
+                });
+            },
+
             init: function (iframeId, htmlContent, dotNetRef) {
                 var iframe = document.getElementById(iframeId);
                 if (!iframe) return;
@@ -52,18 +83,7 @@
                 doc.close();
                 doc.designMode = 'on';
 
-                doc.addEventListener('click', function (e) {
-                    if (e.target.tagName === 'IMG') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        var images = doc.querySelectorAll('img');
-                        var index = Array.prototype.indexOf.call(images, e.target);
-                        dotNetRef.invokeMethodAsync('OnImageClicked', index,
-                            e.target.getAttribute('src') || '',
-                            e.target.getAttribute('alt') || '');
-                    }
-                });
-
+                this._attachHandlers(doc, dotNetRef);
                 iframe._dotNetRef = dotNetRef;
             },
 
@@ -85,17 +105,7 @@
                 doc.designMode = 'on';
 
                 if (dotNetRef) {
-                    doc.addEventListener('click', function (e) {
-                        if (e.target.tagName === 'IMG') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            var images = doc.querySelectorAll('img');
-                            var index = Array.prototype.indexOf.call(images, e.target);
-                            dotNetRef.invokeMethodAsync('OnImageClicked', index,
-                                e.target.getAttribute('src') || '',
-                                e.target.getAttribute('alt') || '');
-                        }
-                    });
+                    window.htmlEditor._attachHandlers(doc, dotNetRef);
                 }
             },
 
@@ -107,6 +117,21 @@
                 if (imageIndex >= 0 && imageIndex < images.length) {
                     images[imageIndex].setAttribute('src', newSrc);
                     images[imageIndex].setAttribute('alt', newAlt);
+                }
+            },
+
+            updateLink: function (iframeId, linkIndex, newHref, newAlias) {
+                var iframe = document.getElementById(iframeId);
+                if (!iframe) return;
+                var doc = iframe.contentDocument || iframe.contentWindow.document;
+                var links = doc.querySelectorAll('a[href]');
+                if (linkIndex >= 0 && linkIndex < links.length) {
+                    links[linkIndex].setAttribute('href', newHref);
+                    if (newAlias) {
+                        links[linkIndex].setAttribute('alias', newAlias);
+                    } else {
+                        links[linkIndex].removeAttribute('alias');
+                    }
                 }
             }
         };

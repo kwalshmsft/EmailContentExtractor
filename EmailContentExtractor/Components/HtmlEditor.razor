@@ -44,6 +44,15 @@
         </div>
     </div>
 
+    @* Subject line field *@
+    <div class="mb-2">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text fw-bold">Subject Line</span>
+            <input type="text" class="form-control" @bind="subjectLine" @bind:event="oninput"
+                   placeholder="Email subject (from &lt;title&gt; tag)" />
+        </div>
+    </div>
+
     @if (!isRawMode)
     {
         <div class="wysiwyg-wrapper" style="@WrapperStyle">
@@ -61,7 +70,7 @@
     {
         <div class="image-editor-overlay" @onclick="CloseImageEditor">
             <div class="image-editor-dialog" @onclick:stopPropagation="true">
-                <h6>Edit Image URL</h6>
+                <h6>Edit Image</h6>
                 @if (currentImagePreviewUrl != null)
                 {
                     <div class="mb-2 text-center">
@@ -83,6 +92,32 @@
             </div>
         </div>
     }
+
+    @* Link editor modal *@
+    @if (showLinkEditor)
+    {
+        <div class="image-editor-overlay" @onclick="CloseLinkEditor">
+            <div class="image-editor-dialog" @onclick:stopPropagation="true">
+                <h6>Edit Link</h6>
+                <div class="mb-2">
+                    <label class="form-label fw-bold">Link Text</label>
+                    <div class="form-control form-control-sm bg-light text-muted" style="min-height: 2em;">@currentLinkText</div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Destination URL</label>
+                    <input type="text" class="form-control form-control-sm" @bind="currentLinkHref" @bind:event="oninput" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Alias <span class="text-muted small">(optional — added as <code>alias</code> attribute)</span></label>
+                    <input type="text" class="form-control form-control-sm" @bind="currentLinkAlias" @bind:event="oninput" />
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button class="btn btn-sm btn-outline-secondary me-1" @onclick="CloseLinkEditor">Cancel</button>
+                    <button class="btn btn-sm btn-primary" @onclick="ApplyLinkChange">Apply</button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -93,10 +128,11 @@
     private ElementReference iframeRef;
     private string iframeId = $"wysiwyg-{Guid.NewGuid():N}";
     private string rawHtml = string.Empty;
+    private string subjectLine = string.Empty;
     private bool isRawMode;
     private bool isSaving;
     private bool isInitialized;
-    private int previewWidth; // 0 = full width
+    private int previewWidth;
 
     private string WrapperStyle => previewWidth > 0
         ? $"max-width: {previewWidth}px; margin: 0 auto; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.15);"
@@ -111,11 +147,19 @@
     private string? currentImagePreviewUrl;
     private int currentImageIndex;
 
+    // Link editor state
+    private bool showLinkEditor;
+    private string? currentLinkHref;
+    private string? currentLinkAlias;
+    private string? currentLinkText;
+    private int currentLinkIndex;
+
     private DotNetObjectReference<HtmlEditor>? dotNetRef;
 
     protected override void OnParametersSet()
     {
         rawHtml = HtmlContent;
+        subjectLine = ExtractTitle(HtmlContent);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -126,6 +170,24 @@
             await JS.InvokeVoidAsync("htmlEditor.init", iframeId, HtmlContent, dotNetRef);
             isInitialized = true;
         }
+    }
+
+    private static string ExtractTitle(string html)
+    {
+        if (string.IsNullOrEmpty(html)) return string.Empty;
+        var match = System.Text.RegularExpressions.Regex.Match(html,
+            @"<title[^>]*>(.*?)</title>", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+        return match.Success ? System.Net.WebUtility.HtmlDecode(match.Groups[1].Value.Trim()) : string.Empty;
+    }
+
+    private static string UpdateTitle(string html, string newTitle)
+    {
+        var encoded = System.Net.WebUtility.HtmlEncode(newTitle);
+        var result = System.Text.RegularExpressions.Regex.Replace(html,
+            @"(<title[^>]*>)(.*?)(</title>)",
+            $"$1{encoded}$3",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+        return result;
     }
 
     private async Task SwitchToRaw()
@@ -140,7 +202,6 @@
     private async Task SwitchToWysiwyg()
     {
         isRawMode = false;
-        // Need to wait for iframe to render, then load content
         await Task.Yield();
         StateHasChanged();
         await Task.Delay(50);
@@ -175,6 +236,9 @@
                 content = rawHtml;
             }
 
+            // Update the title tag with the subject line
+            content = UpdateTitle(content, subjectLine);
+
             await OnSave.InvokeAsync(content);
         }
         finally
@@ -199,6 +263,17 @@
         StateHasChanged();
     }
 
+    [JSInvokable]
+    public void OnLinkClicked(int linkIndex, string href, string alias, string text)
+    {
+        currentLinkIndex = linkIndex;
+        currentLinkHref = href;
+        currentLinkAlias = alias;
+        currentLinkText = text;
+        showLinkEditor = true;
+        StateHasChanged();
+    }
+
     private async Task ApplyImageChange()
     {
         if (isInitialized && !isRawMode)
@@ -212,6 +287,21 @@
     private void CloseImageEditor()
     {
         showImageEditor = false;
+    }
+
+    private async Task ApplyLinkChange()
+    {
+        if (isInitialized && !isRawMode)
+        {
+            await JS.InvokeVoidAsync("htmlEditor.updateLink", iframeId, currentLinkIndex,
+                currentLinkHref ?? "", currentLinkAlias ?? "");
+        }
+        showLinkEditor = false;
+    }
+
+    private void CloseLinkEditor()
+    {
+        showLinkEditor = false;
     }
 
     public void Dispose()
