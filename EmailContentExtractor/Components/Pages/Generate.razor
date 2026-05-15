@@ -5,11 +5,11 @@
 <PageTitle>Generate Localized HTML</PageTitle>
 
 <h1>Generate Localized HTML</h1>
-<p>Upload the original HTML email and a translated CSV file to generate localized versions.</p>
+<p>Upload the original .html email and a translated .csv file to generate localized versions.</p>
 
 <div class="row">
     <div class="col-md-6 mb-3">
-        <label class="form-label">Original HTML file</label>
+        <label class="form-label">Original .html file</label>
         <InputFile OnChange="OnHtmlSelected" accept=".html,.htm" class="form-control" />
         @if (htmlFileName != null)
         {
@@ -17,7 +17,7 @@
         }
     </div>
     <div class="col-md-6 mb-3">
-        <label class="form-label">Translated CSV or XLSX file</label>
+        <label class="form-label">Translated .csv or .xlsx file</label>
         <InputFile OnChange="OnTranslationFileSelected" accept=".csv,.xlsx" class="form-control" />
         @if (translationFileName != null)
         {
@@ -71,7 +71,7 @@
 {
     <div class="alert alert-success mt-3">
         <strong>✅ Localized files generated successfully!</strong>
-        <button class="btn btn-outline-success ms-3" @onclick="DownloadZip">⬇ Download ZIP</button>
+        <button class="btn btn-outline-success ms-3" @onclick="DownloadZip">⬇ Download .zip</button>
     </div>
 }
 

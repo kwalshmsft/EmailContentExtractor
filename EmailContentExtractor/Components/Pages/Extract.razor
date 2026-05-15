@@ -5,10 +5,10 @@
 <PageTitle>Extract Strings</PageTitle>
 
 <h1>Extract Localizable Strings</h1>
-<p>Upload an HTML email file to extract all translatable text and attributes.</p>
+<p>Upload an .html email file to extract all translatable text and attributes.</p>
 
 <div class="mb-3">
-    <label class="form-label">Select HTML file</label>
+    <label class="form-label">Select .html file</label>
     <InputFile OnChange="OnFileSelected" accept=".html,.htm" class="form-control" />
 </div>
 
@@ -31,10 +31,10 @@
             <h4>Extracted Strings (@extractedStrings.Count found)</h4>
             <div>
                 <button class="btn btn-primary me-2" @onclick="DownloadCsv">
-                    ⬇ Download CSV
+                    ⬇ Download .csv
                 </button>
                 <button class="btn btn-success" @onclick="DownloadXlsx">
-                    ⬇ Download XLSX
+                    ⬇ Download .xlsx
                 </button>
             </div>
         </div>
@@ -66,7 +66,7 @@
 }
 else if (extractedStrings != null && extractedStrings.Count == 0)
 {
-    <div class="alert alert-warning mt-3">No localizable strings found in the uploaded HTML.</div>
+    <div class="alert alert-warning mt-3">No localizable strings found in the uploaded .html.</div>
 }
 
 @code {

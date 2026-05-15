@@ -15,13 +15,13 @@
     <div class="col-12">
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">① Upload Source HTML</h5>
+                <h5 class="mb-0">① Upload Source .html</h5>
             </div>
             <div class="card-body">
                 <p class="text-muted">
-                    Upload an HTML email file to get started. The locale is parsed from the filename
+                    Upload an .html email file to get started. The locale is parsed from the filename
                     (e.g. <code>email_en-us.html</code> → en-US). You'll be able to edit the content
-                    and generate a CSV and XLSX file for localization.
+                    and generate a .csv and .xlsx file for localization.
                 </p>
                 <p class="text-muted mb-2">
                     The subject line for the email needs to go into the <code>&lt;title&gt;</code> tag in the headers.
@@ -69,11 +69,11 @@
                                     <td>
                                         <button class="btn btn-sm btn-outline-primary me-1"
                                                 @onclick="() => DownloadCsv(src.FileName)">
-                                            ⬇ CSV
+                                            ⬇ .csv
                                         </button>
                                         <button class="btn btn-sm btn-outline-success"
                                                 @onclick="() => DownloadXlsx(src.FileName)">
-                                            ⬇ XLSX
+                                            ⬇ .xlsx
                                         </button>
                                     </td>
                                     <td>
@@ -114,14 +114,14 @@
     <div class="col-12">
         <div class="card mb-4">
             <div class="card-header bg-success text-white">
-                <h5 class="mb-0">② Upload Translated CSV</h5>
+                <h5 class="mb-0">② Upload Translated .csv / .xlsx</h5>
             </div>
             <div class="card-body">
                 <p class="text-muted">
-                    Edit the CSV or XLSX, fill in the <strong>Translation</strong> column, and save the file
+                    Edit the .csv or .xlsx, fill in the <strong>Translation</strong> column, and save the file
                     with the target locale in the name
                     (e.g. <code>email_K_es-es.csv</code> or <code>email_K_es-es.xlsx</code>).
-                    For XLSX files, you can also use multiple sheets — one per language, with the sheet name
+                    For .xlsx files, you can also use multiple sheets — one per language, with the sheet name
                     as the locale code (e.g. "es-ES", "fr-FR"). Each sheet should have Key and Translation columns.
                 </p>
                 <InputFile OnChange="OnTranslatedFileSelected" accept=".csv,.xlsx" class="form-control" />
@@ -231,7 +231,7 @@
         <div class="col-12">
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">📄 Content Items in XML</h5>
+                    <h5 class="mb-0">📄 Content Items in .xml</h5>
                 </div>
                 <div class="card-body p-0">
                     <table class="table table-hover mb-0">
@@ -351,11 +351,11 @@
                         @string.Join(", ", irisResult.Variants)
                     </div>
                     <p class="text-muted">
-                        The ZIP contains locale-named subfolders ready for Iris Content import.
-                        Extract the ZIP and point the import tool at the extracted folder.
+                        The .zip contains locale-named subfolders ready for Iris Content import.
+                        Extract the .zip and point the import tool at the extracted folder.
                     </p>
                     <button class="btn btn-success btn-lg" @onclick="DownloadIrisZip">
-                        ⬇ Download ZIP
+                        ⬇ Download .zip
                     </button>
                 </div>
             </div>

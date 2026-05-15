@@ -7,22 +7,22 @@
 <div class="mt-4">
 
     <h3>Step 1 — Prepare your localized content <span class="badge bg-secondary">Web App</span></h3>
-    <p>Upload an HTML email file to get started. The locale is parsed from the filename (e.g. <code>email_en-us.html</code> → en-US). You'll be able to edit the content and generate a CSV and XLSX file for localization.</p>
+    <p>Upload an .html email file to get started. The locale is parsed from the filename (e.g. <code>email_en-us.html</code> → en-US). You'll be able to edit the content and generate a .csv and .xlsx file for localization.</p>
     <ol>
-        <li>Create your original HTML content file. The subject line for the email needs to go into the <code>&lt;title&gt;</code> tag in the headers.</li>
-        <li>Go to the web app's <strong>Localize</strong> tab and upload the HTML file into the first section.</li>
-        <li>Download the CSV or XLSX strings file for localization.</li>
-        <li>Fill in translations (or upload a multi-sheet XLSX with one sheet per locale).</li>
-        <li>Upload the translated file — localized HTML files will be generated.</li>
+        <li>Create your original .html content file. The subject line for the email needs to go into the <code>&lt;title&gt;</code> tag in the headers.</li>
+        <li>Go to the web app's <strong>Localize</strong> tab and upload the .html file into the first section.</li>
+        <li>Download the .csv or .xlsx strings file for localization.</li>
+        <li>Fill in translations (or upload a multi-sheet .xlsx with one sheet per locale).</li>
+        <li>Upload the translated file — localized .html files will be generated.</li>
     </ol>
 
     <hr />
 
-    <h3>Step 2 — Export XML from Iris Content <span class="badge bg-secondary">ICMS</span></h3>
+    <h3>Step 2 — Export .xml from Iris Content <span class="badge bg-secondary">ICMS</span></h3>
     <ol>
         <li>In ICMS, create the content object you're going to work with using the <strong>IrisEmailTemplate</strong> content type. This will be under the InvariantCulture tab. Fill in the Subject content, PlainTextBody content, and HtmlBodyFormat content. <em>Note: Any content will do — can be as simple as "Test" in each.</em></li>
         <li>Save the file, check it in, and then right click on the file name and choose <strong>"Export for localization."</strong></li>
-        <li>Save the XML file to your desktop.</li>
+        <li>Save the .xml file to your desktop.</li>
     </ol>
 
     <hr />
@@ -30,14 +30,14 @@
     <h3>Step 3 — Generate the import package <span class="badge bg-secondary">Web App</span></h3>
     <ol>
         <li>Go to the <strong>Iris Content Import</strong> page in the tool.</li>
-        <li>Upload the XML file from Step 2.</li>
+        <li>Upload the .xml file from Step 2.</li>
         <li>The tool will show the content item name, ID, and existing variants.</li>
         <li>Select the source file that matches this content item from the dropdown.</li>
         <li>Review the list of locales that will be generated — <span class="badge bg-success">green</span> badges are new, <span class="badge bg-warning text-dark">yellow</span> badges already exist in Iris.</li>
         <li>Click <strong>📦 Generate Import Package</strong>.</li>
-        <li>Click <strong>⬇ Download ZIP</strong>.</li>
+        <li>Click <strong>⬇ Download .zip</strong>.</li>
         <li>
-            Extract the downloaded ZIP to a folder (e.g. <code>D:\ContentForImport\NewImportTest\</code>). The extracted folder will contain locale-named subfolders:
+            Extract the downloaded .zip to a folder (e.g. <code>D:\ContentForImport\NewImportTest\</code>). The extracted folder will contain locale-named subfolders:
             <pre class="bg-light p-2 mt-2"><code>NewImportTest\
   fr-FR\
     NewImportTest_991667d0-...xml
@@ -71,7 +71,7 @@
     <ul>
         <li><strong>Subject</strong> — extracted from the <code>&lt;title&gt;</code> tag of the HTML</li>
         <li><strong>Plain text body</strong> — auto-generated from the HTML (no tags, links preserved inline)</li>
-        <li><strong>HTML body</strong> — the full localized HTML content</li>
+        <li><strong>HTML body</strong> — the full localized .html content</li>
     </ul>
 
 </div>
