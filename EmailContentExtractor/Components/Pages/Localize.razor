@@ -8,7 +8,7 @@
 @inject NavigationManager Nav
 <PageTitle>Localize Emails</PageTitle>
 
-<h1>Email Localization</h1>
+<h1>Email Content Localization for Iris Content Management</h1>
 
 <div class="row mt-4">
     @* ─── Step 1: Upload Source HTML ─── *@
@@ -19,9 +19,12 @@
             </div>
             <div class="card-body">
                 <p class="text-muted">
-                    Upload an HTML email file. The locale is parsed from the filename
-                    (e.g. <code>email_K_en-au.html</code> → <strong>en-AU</strong>).
-                    A CSV file will be generated for translation.
+                    Upload an HTML email file to get started. The locale is parsed from the filename
+                    (e.g. <code>email_en-us.html</code> → en-US). You'll be able to edit the content
+                    and generate a CSV and XLSX file for localization.
+                </p>
+                <p class="text-muted mb-2">
+                    The subject line for the email needs to go into the <code>&lt;title&gt;</code> tag in the headers.
                 </p>
                 <InputFile OnChange="OnSourceHtmlSelected" accept=".html,.htm" class="form-control" />
 
