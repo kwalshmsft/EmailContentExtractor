@@ -6,43 +6,45 @@
 
 main {
     flex: 1;
+    background-color: #f5f5f5;
+    min-height: calc(100vh - 48px);
+}
+
+/* Iris-style dark blue header bar */
+.iris-header {
+    height: 48px;
+    background-color: #1b3a5c;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.iris-header-brand {
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
 }
 
 .sidebar {
-    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+    background-color: #fff;
+    border-right: 1px solid #e0e0e0;
 }
 
-.top-row {
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
-    justify-content: flex-end;
-    height: 3.5rem;
-    display: flex;
-    align-items: center;
+.content {
+    padding-top: 1.5rem;
 }
 
-    .top-row ::deep a, .top-row ::deep .btn-link {
-        white-space: nowrap;
-        margin-left: 1.5rem;
-        text-decoration: none;
-    }
-
-    .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
-        text-decoration: underline;
-    }
-
-    .top-row ::deep a:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+h1:focus {
+    outline: none;
+}
 
 @media (max-width: 640.98px) {
-    .top-row {
+    .iris-header {
         justify-content: space-between;
-    }
-
-    .top-row ::deep a, .top-row ::deep .btn-link {
-        margin-left: 0;
     }
 }
 
@@ -52,22 +54,10 @@ main {
     }
 
     .sidebar {
-        width: 250px;
-        height: 100vh;
+        width: 220px;
+        height: calc(100vh - 48px);
         position: sticky;
-        top: 0;
-    }
-
-    .top-row {
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-
-    .top-row.auth ::deep a:first-child {
-        flex: 1;
-        text-align: right;
-        width: 0;
+        top: 48px;
     }
 
     .top-row, article {
