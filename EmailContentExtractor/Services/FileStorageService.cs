@@ -13,8 +13,8 @@ public class FileStorageService
         RegexOptions.Compiled);
 
     /// <summary>
-    /// Parses locale from a filename like "email_K_en-au.html" → "en-AU"
-    /// or "email_K_en.html" → "en".
+    /// Parses locale from a filename like "email_en-au.html" → "en-AU"
+    /// or "email_en.html" → "en".
     /// Returns null if no locale pattern is found.
     /// </summary>
     public static string? ParseLocale(string fileName)
@@ -31,7 +31,7 @@ public class FileStorageService
 
     /// <summary>
     /// Extracts the base name from a filename (everything before the locale).
-    /// e.g. "email_K_en-au.html" → "email_K"
+    /// e.g. "email_en-au.html" → "email"
     /// </summary>
     public static string? ParseBaseName(string fileName)
     {

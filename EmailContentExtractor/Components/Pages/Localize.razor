@@ -120,7 +120,7 @@
                 <p class="text-muted">
                     Edit the .csv or .xlsx, fill in the <strong>Translation</strong> column, and save the file
                     with the target locale in the name
-                    (e.g. <code>email_K_es-es.csv</code> or <code>email_K_es-es.xlsx</code>).
+                    (e.g. <code>email_es-es.csv</code> or <code>email_es-es.xlsx</code>).
                     For .xlsx files, you can also use multiple sheets — one per language, with the sheet name
                     as the locale code (e.g. "es-ES", "fr-FR"). Each sheet should have Key and Translation columns.
                 </p>
@@ -424,7 +424,7 @@
             if (locale == null)
             {
                 uploadError = $"Could not detect locale from filename \"{fileName}\". " +
-                    "Expected format like \"email_K_en-au.html\" where the locale is before the extension.";
+                    "Expected format like \"email_en-au.html\" where the locale is before the extension.";
                 return;
             }
 
@@ -529,7 +529,7 @@
                 if (targetLocale == null)
                 {
                     csvError = $"Could not detect target locale from filename \"{uploadFileName}\". " +
-                        "For single-sheet XLSX, save the file with the target locale in the name (e.g. \"email_K_es-es.xlsx\"). " +
+                        "For single-sheet XLSX, save the file with the target locale in the name (e.g. \"email_es-es.xlsx\"). " +
                         "Or use multiple sheets named with locale codes (e.g. \"es-ES\", \"fr-FR\").";
                     return;
                 }
@@ -564,7 +564,7 @@
                 if (targetLocale == null || baseName == null)
                 {
                     csvError = $"Could not detect target locale from CSV filename \"{uploadFileName}\". " +
-                        "Save the CSV with the target locale in the name, e.g. \"email_K_es-es.csv\".";
+                        "Save the CSV with the target locale in the name, e.g. \"email_es-es.csv\".";
                     return;
                 }
 
